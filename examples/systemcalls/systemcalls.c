@@ -16,8 +16,9 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    bool retVal = (system(cmd) == 0);
 
-    return true;
+    return retVal;
 }
 
 /**
@@ -48,6 +49,7 @@ bool do_exec(int count, ...)
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
     command[count] = command[count];
+    
 
 /*
  * TODO:
@@ -58,10 +60,24 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    int pid = fork();
+    int retVal = 0;
+    
+    if(pid < 0) {
+    	printf("Error occurred in fork()\r\n");
+    	retVal = 1;
+    } else if(pid == 0) {
+    	//Child process code
+    	execv(command[0], command);
+    } else {
+    	//Parent process code, wait for all (there is only 1) child
+        waitpid(-1, &retVal, 0);
 
+	}
+    
     va_end(args);
-
-    return true;
+    bool ret = (retVal == 0);
+    return ret;
 }
 
 /**
@@ -84,7 +100,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // and may be removed
     command[count] = command[count];
 
-
+    va_end(args);
 /*
  * TODO
  *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
@@ -92,8 +108,29 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    
+    int pid = fork();
+    int retVal = 0;
+    int fd = open(outputfile, O_WRONLY | O_CREAT);
+    
+    if(pid < 0) {
+    	printf("Error occurred in fork()\r\n");
+    	retVal = 1;
+    } else if(pid == 0) {
+    	//Child process code
+        if (dup2(fd, 1) < 0) { 
+            perror("dup2");
+            return 1;
+	}
+    	close(fd);
+    
+    	execv(command[0], command);
+    } else {
+    	//Parent process code, wait for all (there is only 1) child
+    	close(fd);
+    	wait(0);
+    	printf("DEBUG: parent return code %d\r\n", retVal);
+    }
 
-    va_end(args);
-
-    return true;
+    return (retVal == 0);
 }
